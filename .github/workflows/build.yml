@@ -23,16 +23,20 @@ jobs:
         with:
           version: 8
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
+          targets: x86_64-pc-windows-msvc
+
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies
         run: pnpm install
 
-      - name: Build Tauri app (Windows NSIS installer)
+      - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -42,10 +46,8 @@ jobs:
           releaseBody: 'See CHANGELOG for details.'
           releaseDraft: true
           prerelease: false
-          args: --target x86_64-pc-windows-msvc --bundles nsis
 
       - name: Upload Windows artifacts
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: windows-installer
@@ -67,19 +69,20 @@ jobs:
         with:
           version: 8
 
-      - name: Install Rust
-        uses: actions-rs/toolchain@v1
+      - name: Install Rust stable
+        uses: dtolnay/rust-toolchain@stable
         with:
-          toolchain: stable
-          override: true
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
 
-      - name: Add Rust targets for universal binary
-        run: rustup target add aarch64-apple-darwin x86_64-apple-darwin
+      - name: Rust cache
+        uses: swatinem/rust-cache@v2
+        with:
+          workspaces: './src-tauri -> target'
 
       - name: Install frontend dependencies
         run: pnpm install
 
-      - name: Build Tauri app (macOS DMG)
+      - name: Build Tauri app
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -89,11 +92,9 @@ jobs:
           releaseBody: 'See CHANGELOG for details.'
           releaseDraft: true
           prerelease: false
-          args: --target universal-apple-darwin --bundles dmg
 
       - name: Upload macOS artifacts
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: macos-dmg
-          path: src-tauri/target/universal-apple-darwin/release/bundle/dmg/*
+          path: src-tauri/target/release/bundle/dmg/*
