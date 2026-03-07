@@ -105,10 +105,10 @@ export async function initDatabase(): Promise<void> {
   if (savedDb) {
     console.log('Loading existing database from localStorage')
     const uint8Array = new Uint8Array(JSON.parse(savedDb))
-    db = new SQL.Database(uint8Array)
+    db = new SQL!.Database(uint8Array)
   } else {
     console.log('Creating new database')
-    db = new SQL.Database()
+    db = new SQL!.Database()
     // 创建版本表
     db.run(`
       CREATE TABLE IF NOT EXISTS schema_version (

@@ -42,7 +42,7 @@
         <div v-if="parsedInfo" class="parsed-info">
           <el-alert type="success" :closable="false">
             <template #title>
-              识别完成，已提取 {{ Object.keys(parsedInfo).filter(k => parsedInfo[k]).length }} 个字段
+              识别完成，已提取 {{ parsedFieldCount }} 个字段
             </template>
           </el-alert>
         </div>
@@ -273,6 +273,10 @@ const formRef = ref<FormInstance>()
 const submitting = ref(false)
 const parsing = ref(false)
 const parsedInfo = ref<Record<string, string | null> | null>(null)
+const parsedFieldCount = computed(() => {
+  if (!parsedInfo.value) return 0
+  return Object.keys(parsedInfo.value).filter(k => parsedInfo.value?.[k]).length
+})
 
 // 文件预览相关
 const previewUrl = ref<string | null>(null)
