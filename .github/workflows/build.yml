@@ -7,94 +7,64 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-windows:
-    runs-on: windows-latest
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: windows-latest
+            name: windows
+          - platform: macos-latest
+            name: macos
+
+    runs-on: ${{ matrix.platform }}
+    name: Build (${{ matrix.name }})
+
     steps:
-      - name: Checkout repository
+      - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install Node.js
+      - name: Setup Node
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: 20
 
-      - name: Install pnpm
+      - name: Setup pnpm
         uses: pnpm/action-setup@v2
         with:
-          version: 8
+          version: 9
 
-      - name: Install Rust stable
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: x86_64-pc-windows-msvc
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
         with:
           workspaces: './src-tauri -> target'
 
-      - name: Install frontend dependencies
+      - name: Install dependencies
         run: pnpm install
 
-      - name: Build Tauri app
+      - name: Build Tauri
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tagName: ${{ github.ref_name }}
-          releaseName: '工作计划管理系统 v__VERSION__'
-          releaseBody: 'See CHANGELOG for details.'
+          releaseName: 'v__VERSION__'
           releaseDraft: true
           prerelease: false
 
-      - name: Upload Windows artifacts
+      - name: Upload artifacts (Windows)
+        if: matrix.name == 'windows'
         uses: actions/upload-artifact@v4
         with:
-          name: windows-installer
-          path: src-tauri/target/release/bundle/nsis/*
+          name: windows-build
+          path: src-tauri/target/release/bundle/
 
-  build-macos:
-    runs-on: macos-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-
-      - name: Install pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: 8
-
-      - name: Install Rust stable
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
-
-      - name: Rust cache
-        uses: swatinem/rust-cache@v2
-        with:
-          workspaces: './src-tauri -> target'
-
-      - name: Install frontend dependencies
-        run: pnpm install
-
-      - name: Build Tauri app
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: '工作计划管理系统 v__VERSION__'
-          releaseBody: 'See CHANGELOG for details.'
-          releaseDraft: true
-          prerelease: false
-
-      - name: Upload macOS artifacts
+      - name: Upload artifacts (macOS)
+        if: matrix.name == 'macos'
         uses: actions/upload-artifact@v4
         with:
-          name: macos-dmg
-          path: src-tauri/target/release/bundle/dmg/*
+          name: macos-build
+          path: src-tauri/target/release/bundle/
