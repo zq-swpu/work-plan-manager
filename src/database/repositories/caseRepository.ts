@@ -6,6 +6,7 @@ import type {
   PaginatedResult
 } from '@/types'
 import { CaseType, CaseStatus, CaseStage, PartyRole } from '@/types'
+import { logger } from '@/utils/logger'
 
 export function createCaseRepository(db: Database) {
   function rowToCase(row: unknown[]): LawsuitCase {
@@ -162,7 +163,6 @@ export function createCaseRepository(db: Database) {
   }
 
   function createCase(data: CaseFormData): number {
-    console.log('caseRepository.createCase called with:', data)
     try {
       db.run(`
         INSERT INTO lawsuit_cases (case_number, name, type, status, stage, our_role, our_party,
@@ -178,11 +178,9 @@ export function createCaseRepository(db: Database) {
           data.remark, data.attachmentPath, data.contractId, data.handlerId, data.departmentId, null, null])
 
       const result = db.exec('SELECT last_insert_rowid()')
-      const id = result[0]?.values[0]?.[0] as number || 0
-      console.log('caseRepository.createCase result id:', id)
-      return id
+      return result[0]?.values[0]?.[0] as number || 0
     } catch (error) {
-      console.error('caseRepository.createCase error:', error)
+      logger.error('CaseRepo', 'Failed to create case', error)
       throw error
     }
   }

@@ -97,8 +97,7 @@ async function handleLogin() {
     } else {
       ElMessage.error('用户名或密码错误')
     }
-  } catch (error) {
-    console.error('Login error:', error)
+  } catch {
     ElMessage.error('登录失败，请稍后重试')
   } finally {
     loading.value = false

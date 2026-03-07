@@ -156,6 +156,7 @@ import {
 } from '@element-plus/icons-vue'
 import { useTaskStore, useUserStore } from '@/stores'
 import { initDatabase, resetDatabase } from '@/database'
+import { logger } from '@/utils/logger'
 
 const route = useRoute()
 const router = useRouter()
@@ -186,29 +187,20 @@ onMounted(async () => {
   // Expose resetDatabase for debugging
   ;(window as any).resetDatabase = resetDatabase
 
-  console.log('App.vue: onMounted called')
-  console.log('App.vue: initializing =', initializing.value)
-
   try {
-    console.log('App: Starting initialization...')
     await initDatabase()
-    console.log('App: Database initialized')
     userStore.loadCurrentUser()
-    console.log('App: Current user loaded')
 
-    // Always initialize stores
+    // Initialize stores
     await Promise.all([
       taskStore.init(),
       userStore.init()
     ])
-    console.log('App: Stores initialized')
   } catch (error) {
-    console.error('App: Initialization error:', error)
+    logger.error('App', 'Initialization failed', error)
     initError.value = String(error)
   } finally {
     initializing.value = false
-    console.log('App: Initialization complete, initializing =', initializing.value)
-    console.log('App: isLoggedIn =', isLoggedIn.value)
   }
 })
 </script>

@@ -160,12 +160,32 @@ export function createUserRepository(db: Database) {
 
   // ========== 用户操作 ==========
 
+  // 密码哈希盐值（在实际应用中应该每个用户使用不同的盐值）
+  const SALT = 'work-plan-manager-2024'
+
   function hashPassword(password: string): string {
-    return CryptoJS.MD5(password).toString()
+    // 使用 SHA-256 并添加盐值增强安全性
+    return CryptoJS.SHA256(password + SALT).toString()
   }
 
   function verifyPassword(password: string, hash: string): boolean {
     return hashPassword(password) === hash
+  }
+
+  // 检查是否是旧版 MD5 哈希格式（用于迁移兼容）
+  function isLegacyMd5Hash(hash: string): boolean {
+    return hash.length === 32 && /^[a-f0-9]{32}$/.test(hash)
+  }
+
+  // 验证密码（支持新旧格式）
+  function verifyPasswordWithMigration(password: string, hash: string): boolean {
+    // 如果是旧版 MD5 格式，使用 MD5 验证
+    if (isLegacyMd5Hash(hash)) {
+      const md5Hash = CryptoJS.MD5(password).toString()
+      return md5Hash === hash
+    }
+    // 否则使用新的 SHA-256 格式
+    return verifyPassword(password, hash)
   }
 
   function getAllUsers(): User[] {
@@ -285,8 +305,13 @@ export function createUserRepository(db: Database) {
   function authenticate(username: string, password: string): User | null {
     const user = getUserByUsername(username)
     if (!user) return null
-    if (!verifyPassword(password, user.password)) return null
+    if (!verifyPasswordWithMigration(password, user.password)) return null
     if (user.status !== CommonStatus.ENABLED) return null
+    // 如果是旧版 MD5 哈希，自动升级为新的 SHA-256 格式
+    if (isLegacyMd5Hash(user.password)) {
+      const newHash = hashPassword(password)
+      db.run('UPDATE users SET password = ? WHERE id = ?', [newHash, user.id])
+    }
     updateLastLogin(user.id)
     return user
   }

@@ -4,6 +4,7 @@ import type { LawsuitCase, CaseFormData, CaseFilter, CaseProgress, CaseProgressF
 import { CaseType, CaseStatus, CaseStage } from '@/types'
 import { getCaseRepository, saveDatabase } from '@/database'
 import { useUserStore } from './userStore'
+import { logger } from '@/utils/logger'
 import dayjs from 'dayjs'
 
 export const useCaseStore = defineStore('case', () => {
@@ -88,14 +89,12 @@ export const useCaseStore = defineStore('case', () => {
 
   async function createCase(data: CaseFormData): Promise<number> {
     const repo = getCaseRepository()
-    console.log('Creating case with data:', data)
     const id = repo.createCase(data)
-    console.log('Case created with id:', id)
     saveDatabase()
     try {
       await loadCases()
     } catch (e) {
-      console.error('Failed to reload cases after create:', e)
+      logger.error('Case', 'Failed to reload cases after create', e)
     }
     return id
   }

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { User, UserFormData, Department, DepartmentFormData, Role, RoleFormData, CurrentUser, LoginForm } from '@/types'
 import { RoleType } from '@/types'
 import { getUserRepository, saveDatabase } from '@/database'
+import { logger } from '@/utils/logger'
 
 export const useUserStore = defineStore('user', () => {
   // State
@@ -19,9 +20,7 @@ export const useUserStore = defineStore('user', () => {
     isLoading.value = true
     try {
       const repo = getUserRepository()
-      console.log('Attempting login for user:', form.username)
       const user = repo.authenticate(form.username, form.password)
-      console.log('Authentication result:', user ? 'success' : 'failed')
       if (user) {
         const current = repo.getCurrentUser(user.id)
         if (current) {
@@ -33,7 +32,7 @@ export const useUserStore = defineStore('user', () => {
       }
       return false
     } catch (error) {
-      console.error('Login error:', error)
+      logger.error('Auth', 'Login failed', error)
       return false
     } finally {
       isLoading.value = false

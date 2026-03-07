@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import * as db from '@/database'
+import { logger } from '@/utils/logger'
 
 export interface AppSettings {
   theme: 'light' | 'dark' | 'auto'
@@ -33,7 +34,7 @@ export const useSettingStore = defineStore('setting', () => {
         language: (savedLanguage as AppSettings['language']) || defaultSettings.language
       }
     } catch (e) {
-      console.error('Failed to load settings:', e)
+      logger.error('Settings', 'Failed to load settings', e)
     }
   }
 

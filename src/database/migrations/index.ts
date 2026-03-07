@@ -2,6 +2,7 @@ import type { Database } from '../index'
 import { V1_Initial } from './V1__initial'
 import { V2_LegalSystem } from './V2__legal_system'
 import { V3_WorkTaskMigration } from './V3__work_task_migration'
+import { logger } from '@/utils/logger'
 
 export interface Migration {
   version: number
@@ -26,7 +27,7 @@ export function getAllMigrations(): Migration[] {
 export function runMigrations(db: Database, migrations: Migration[], currentVersion: number): void {
   for (const migration of migrations) {
     if (migration.version > currentVersion) {
-      console.log(`Running migration: ${migration.name} (v${migration.version})`)
+      logger.debug('Migration', `Running: ${migration.name} (v${migration.version})`)
       migration.up(db)
       // 更新版本号
       db.run(

@@ -200,6 +200,7 @@ import {
   contractTypeLabels, contractStatusLabels, riskLevelLabels
 } from '@/types'
 import type { ContractFormData } from '@/types'
+import { parseContractInfo, type ContractParsedInfo } from '@/utils/documentParser'
 import * as pdfjsLib from 'pdfjs-dist'
 import mammoth from 'mammoth'
 
@@ -216,10 +217,10 @@ const contractId = computed(() => Number(route.params.id))
 const formRef = ref<FormInstance>()
 const submitting = ref(false)
 const parsing = ref(false)
-const parsedInfo = ref<Record<string, string | null> | null>(null)
+const parsedInfo = ref<ContractParsedInfo | null>(null)
 const parsedFieldCount = computed(() => {
   if (!parsedInfo.value) return 0
-  return Object.keys(parsedInfo.value).filter(k => parsedInfo.value?.[k]).length
+  return Object.keys(parsedInfo.value).filter(k => parsedInfo.value?.[k as keyof ContractParsedInfo]).length
 })
 
 const form = reactive<ContractFormData>({
@@ -276,7 +277,6 @@ async function handleFileChange(uploadFile: UploadFile) {
       return
     }
 
-    console.log('提取的文本:', text)
     const info = parseContractInfo(text)
     parsedInfo.value = info
     applyParsedInfo(info)
@@ -287,7 +287,6 @@ async function handleFileChange(uploadFile: UploadFile) {
       form.name = file.name.replace(/\.(pdf|doc|docx)$/i, '')
     }
   } catch (error) {
-    console.error('文档解析失败:', error)
     ElMessage.error('文档解析失败: ' + (error as Error).message)
   } finally {
     parsing.value = false
@@ -319,173 +318,9 @@ async function extractDocText(file: File): Promise<string> {
 }
 
 // 解析合同信息
-function parseContractInfo(text: string): Record<string, string | null> {
-  const info: Record<string, string | null> = {
-    name: null,
-    partyA: null,
-    partyB: null,
-    amount: null,
-    signedDate: null,
-    startDate: null,
-    endDate: null,
-    subject: null,
-    partyBContact: null,
-    partyBPhone: null
-  }
-
-  // 合同名称
-  const namePatterns = [
-    /合同名称[：:]\s*([^\n]+)/,
-    /关于[：:]?\s*([^\n]{5,50})合同/,
-    /^([^\n]{5,50}合同)/m
-  ]
-  for (const pattern of namePatterns) {
-    const match = text.match(pattern)
-    if (match) {
-      info.name = match[1].trim()
-      break
-    }
-  }
-
-  // 甲方
-  const partyAPatterns = [
-    /甲方[（(]出租方|买方|委托方[）)]?[：:]\s*([^\n]+)/,
-    /甲方[：:]\s*([^\n]+)/,
-    /出租方[：:]\s*([^\n]+)/,
-    /买方[：:]\s*([^\n]+)/
-  ]
-  for (const pattern of partyAPatterns) {
-    const match = text.match(pattern)
-    if (match) {
-      info.partyA = cleanPartyName(match[1])
-      break
-    }
-  }
-
-  // 乙方
-  const partyBPatterns = [
-    /乙方[（(]承租方|卖方|受托方[）)]?[：:]\s*([^\n]+)/,
-    /乙方[：:]\s*([^\n]+)/,
-    /承租方[：:]\s*([^\n]+)/,
-    /卖方[：:]\s*([^\n]+)/,
-    /供应商[：:]\s*([^\n]+)/
-  ]
-  for (const pattern of partyBPatterns) {
-    const match = text.match(pattern)
-    if (match) {
-      info.partyB = cleanPartyName(match[1])
-      break
-    }
-  }
-
-  // 金额
-  const amountPatterns = [
-    /合同[总]?金额[：:]\s*[人民币￥]?\s*([\d,]+\.?\d*)\s*元?/,
-    /总价[：:]\s*[人民币￥]?\s*([\d,]+\.?\d*)\s*元?/,
-    /金额[：:]\s*[人民币￥]?\s*([\d,]+\.?\d*)\s*元?/,
-    /[人民币￥]\s*([\d,]+\.?\d*)\s*元/
-  ]
-  for (const pattern of amountPatterns) {
-    const match = text.match(pattern)
-    if (match) {
-      info.amount = match[1].replace(/,/g, '')
-      break
-    }
-  }
-
-  // 签订日期
-  const datePatterns = [
-    /签订[日]期[：:]\s*(\d{4}[-年]\d{1,2}[-月]\d{1,2}[日]?)/,
-    /签署[日]期[：:]\s*(\d{4}[-年]\d{1,2}[-月]\d{1,2}[日]?)/,
-    /(\d{4}[-年]\d{1,2}[-月]\d{1,2}[日]?)\s*签订/
-  ]
-  for (const pattern of datePatterns) {
-    const match = text.match(pattern)
-    if (match) {
-      info.signedDate = normalizeDate(match[1])
-      break
-    }
-  }
-
-  // 合同期限
-  const periodMatch = text.match(/合同期限[：:]?\s*(?:自\s*)?(\d{4}[-年]\d{1,2}[-月]\d{1,2})?[至到]\s*(\d{4}[-年]\d{1,2}[-月]\d{1,2})/)
-  if (periodMatch) {
-    if (periodMatch[1]) info.startDate = normalizeDate(periodMatch[1])
-    if (periodMatch[2]) info.endDate = normalizeDate(periodMatch[2])
-  }
-
-  // 生效日期
-  const startDateMatch = text.match(/生效[日]期[：:]\s*(\d{4}[-年]\d{1,2}[-月]\d{1,2})/)
-  if (startDateMatch) {
-    info.startDate = normalizeDate(startDateMatch[1])
-  }
-
-  // 标的物
-  const subjectPatterns = [
-    /标的物[：:]\s*([^\n]+)/,
-    /标的[：:]\s*([^\n]+)/,
-    /项目名称[：:]\s*([^\n]+)/
-  ]
-  for (const pattern of subjectPatterns) {
-    const match = text.match(pattern)
-    if (match) {
-      info.subject = match[1].trim().substring(0, 100)
-      break
-    }
-  }
-
-  // 联系人
-  const contactMatch = text.match(/联系人[：:]\s*([^\n]+)/)
-  if (contactMatch) {
-    info.partyBContact = contactMatch[1].trim().substring(0, 20)
-  }
-
-  // 电话
-  const phonePatterns = [
-    /联系电话[：:]\s*(\d{3,4}[-]?\d{7,8})/,
-    /电话[：:]\s*(\d{3,4}[-]?\d{7,8})/,
-    /手机[：:]\s*(1[3-9]\d{9})/
-  ]
-  for (const pattern of phonePatterns) {
-    const match = text.match(pattern)
-    if (match) {
-      info.partyBPhone = match[1]
-      break
-    }
-  }
-
-  return info
-}
-
-// 清理当事人名称
-function cleanPartyName(name: string): string {
-  return name
-    .replace(/[（(].*?[）)]/g, '')
-    .replace(/[：:\s]+$/, '')
-    .replace(/[，,。.；;].*$/, '')
-    .trim()
-    .substring(0, 50)
-}
-
-// 标准化日期格式
-function normalizeDate(dateStr: string): string {
-  const normalized = dateStr
-    .replace(/[年月]/g, '-')
-    .replace(/日/g, '')
-    .replace(/-+/g, '-')
-    .replace(/-$/, '')
-
-  // 验证日期格式
-  const match = normalized.match(/^\d{4}-\d{1,2}-\d{1,2}$/)
-  if (match) {
-    const parts = normalized.split('-')
-    return `${parts[0]}-${parts[1].padStart(2, '0')}-${parts[2].padStart(2, '0')}`
-  }
-  return normalized
-}
 
 // 应用解析的信息到表单
-function applyParsedInfo(info: Record<string, string | null>) {
+function applyParsedInfo(info: ContractParsedInfo) {
   if (info.name) form.name = info.name
   if (info.partyA) form.partyA = info.partyA
   if (info.partyB) form.partyB = info.partyB

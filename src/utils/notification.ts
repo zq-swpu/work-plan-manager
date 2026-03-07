@@ -1,11 +1,12 @@
 import dayjs from 'dayjs'
 import type { Task } from '@/types'
 import { TaskStatus } from '@/types'
+import { logger } from '@/utils/logger'
 
 // 请求通知权限
 export async function requestNotificationPermission(): Promise<boolean> {
   if (!('Notification' in window)) {
-    console.warn('浏览器不支持通知功能')
+    logger.warn('Notification', '浏览器不支持通知功能')
     return false
   }
 
@@ -24,7 +25,7 @@ export async function requestNotificationPermission(): Promise<boolean> {
 // 发送桌面通知
 export function sendNotification(title: string, options?: NotificationOptions): Notification | null {
   if (Notification.permission !== 'granted') {
-    console.warn('未获得通知权限')
+    logger.warn('Notification', '未获得通知权限')
     return null
   }
 
