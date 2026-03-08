@@ -14,6 +14,7 @@ env:
 
 jobs:
   build:
+    runs-on: ${{ matrix.platform }}
     strategy:
       fail-fast: false
       matrix:
@@ -22,9 +23,6 @@ jobs:
             name: windows
           - platform: macos-latest
             name: macos
-
-    runs-on: ${{ matrix.platform }}
-    name: Build (${{ matrix.name }})
 
     steps:
       - name: Checkout
@@ -42,7 +40,6 @@ jobs:
 
       - name: Install Rust
         run: |
-          # Retry loop for Rust installation
           for i in 1 2 3 4 5; do
             echo "Attempt $i to install Rust..."
             if rustup --version 2>/dev/null; then
@@ -65,25 +62,48 @@ jobs:
         run: pnpm install
 
       - name: Build Tauri
-        uses: tauri-apps/tauri-action@v0
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          tagName: ${{ github.ref_name }}
-          releaseName: 'v__VERSION__'
-          releaseDraft: true
-          prerelease: false
+        run: pnpm tauri build
 
-      - name: Upload artifacts (Windows)
+      - name: Upload Windows artifacts
         if: matrix.name == 'windows'
         uses: actions/upload-artifact@v4
         with:
-          name: windows-build
-          path: src-tauri/target/release/bundle/
+          name: windows-artifacts
+          path: |
+            src-tauri/target/release/bundle/msi/*.msi
+            src-tauri/target/release/bundle/nsis/*.exe
 
-      - name: Upload artifacts (macOS)
+      - name: Upload macOS artifacts
         if: matrix.name == 'macos'
         uses: actions/upload-artifact@v4
         with:
-          name: macos-build
-          path: src-tauri/target/release/bundle/
+          name: macos-artifacts
+          path: src-tauri/target/release/bundle/dmg/*.dmg
+
+  release:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: windows-artifacts
+          path: windows
+
+      - name: Download macOS artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: macos-artifacts
+          path: macos
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          name: Release ${{ github.ref_name }}
+          draft: false
+          prerelease: false
+          files: |
+            windows/*.msi
+            windows/*.exe
+            macos/*.dmg
