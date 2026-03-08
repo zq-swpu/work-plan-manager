@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "工作计划管理系统",
+  "productName": "work-plan-manager",
   "version": "1.0.0",
   "identifier": "com.workplan.manager",
   "build": {
@@ -36,9 +36,6 @@
     ]
   },
   "plugins": {
-    "sql": {
-      "preload": ["sqlite:workplan.db"]
-    },
     "notification": {
       "all": true
     }
