@@ -6,6 +6,9 @@ on:
       - 'v*'
   workflow_dispatch:
 
+env:
+  CARGO_TERM_COLOR: always
+
 jobs:
   build:
     strategy:
@@ -34,8 +37,21 @@ jobs:
         with:
           version: 9
 
-      - name: Setup Rust
-        uses: dtolnay/rust-toolchain@stable
+      - name: Install Rust
+        run: |
+          # Retry loop for Rust installation
+          for i in 1 2 3 4 5; do
+            echo "Attempt $i to install Rust..."
+            if rustup --version 2>/dev/null; then
+              echo "Rustup already installed"
+              break
+            fi
+            curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh -s -- -y --profile minimal --default-toolchain stable && break
+            echo "Attempt $i failed, waiting before retry..."
+            sleep $((i * 10))
+          done
+          echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+        shell: bash
 
       - name: Rust cache
         uses: swatinem/rust-cache@v2
